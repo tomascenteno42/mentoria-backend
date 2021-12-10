@@ -1,35 +1,41 @@
 const { Router } = require('express');
-const { db } = require('../../database/db');
+const { query } = require('../../database/db');
 
 const productsRouter = Router();
 
-let currentId = 1;
-
 // http://localhost:8080/api/v1/products/
-productsRouter.get('/', (req, res) => {
-    if (db.products.length === 0) {
+productsRouter.get('/', async (req, res) => {
+    const products = await query(`SELECT * from products;`);
+    console.log(products);
+    if (products.length === 0) {
         return res
             .status(404)
             .json({ error: 'There are no products in the db!' });
     }
 
-    return res.json(db.products);
+    return res.json(products);
 });
 
 // http://localhost:8080/api/v1/products/create
-productsRouter.post('/create', (req, res) => {
+productsRouter.post('/create', async (req, res) => {
     const { body } = req;
 
-    const product = {
-        ...body,
-        id: currentId,
-    };
+    const product = body;
 
-    db.products.push(product);
+    if (!('name' in product) || !('description' in product)) {
+        return res.status(400).json({ error: 'Please check your input!' });
+    }
 
-    currentId++;
+    const response = await query(`
+        INSERT INTO products (name, description)
+        VALUES ('${product.name}', '${product.description}');
+    `);
 
-    return res.json(product);
+    const [newProduct] = await query(
+        `select * from products where id=${response.insertId};`
+    );
+
+    return res.json(newProduct);
 });
 
 // http://localhost:8080/api/v1/products/1
